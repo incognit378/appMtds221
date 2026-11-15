@@ -1,0 +1,161 @@
+<ion-header>
+  <ion-toolbar [color]="esAdmin ? 'dark' : 'primary'">
+    <ion-title>{{ esAdmin ? 'Gestión y Solicitudes' : 'Mis Solicitudes' }}</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding">
+  <!-- 1. CARRITO DE SOLICITUD EN CURSO (Disponible para Cliente y Admin) -->
+  <ion-card>
+    <ion-card-header>
+      <ion-card-title>Solicitud en Curso</ion-card-title>
+      <ion-card-subtitle>Revisa los ítems antes de confirmar</ion-card-subtitle>
+    </ion-card-header>
+    <ion-card-content>
+      <ion-list *ngIf="itemsCarrito.length > 0">
+        <ion-item *ngFor="let item of itemsCarrito">
+          <ion-label>
+            <h3>{{ item.nombre }}</h3>
+            <p>Cantidad: {{ item.cantidad }} × ${{ item.precio }}</p>
+          </ion-label>
+          <ion-button fill="clear" color="danger" slot="end" (click)="quitarItem(item.id)">
+            <ion-icon name="trash-outline" slot="icon-only"></ion-icon>
+          </ion-button>
+        </ion-item>
+      </ion-list>
+
+      <div *ngIf="itemsCarrito.length === 0" class="ion-text-center ion-padding">
+        <p style="color: var(--ion-color-medium);">No has agregado ítems desde el catálogo.</p>
+      </div>
+
+      <div *ngIf="itemsCarrito.length > 0" class="ion-margin-top">
+        <ion-item lines="none">
+          <ion-label><strong>Total Estimado:</strong></ion-label>
+          <ion-note slot="end" color="primary" style="font-size: 1.2rem; font-weight: bold;">
+            ${{ total.toFixed(2) }} USD
+          </ion-note>
+        </ion-item>
+
+        <ion-button expand="block" color="success" class="ion-margin-top" (click)="enviarSolicitud()" [disabled]="enviando">
+          Confirmar Solicitud
+        </ion-button>
+      </div>
+    </ion-card-content>
+  </ion-card>
+
+  <!-- 2. PANEL ADMINISTRADOR (Solo visible para Admin) -->
+  <div *ngIf="esAdmin" class="ion-margin-top">
+    <div *ngIf="!clienteSeleccionado">
+      <ion-list-header>
+        <ion-label><strong>Panel Admin: Estudiantes ({{ clientes.length }})</strong></ion-label>
+      </ion-list-header>
+
+      <ion-card *ngFor="let cli of clientes" button (click)="seleccionarCliente(cli)">
+        <ion-item lines="none">
+          <ion-icon name="person-outline" slot="start" color="primary"></ion-icon>
+          <ion-label>
+            <h2><strong>{{ cli.name }}</strong></h2>
+            <p>{{ cli.email }}</p>
+          </ion-label>
+          <ion-badge slot="end" color="tertiary">
+            {{ cli.solicitudes?.length || 0 }} solicitudes
+          </ion-badge>
+        </ion-item>
+      </ion-card>
+    </div>
+
+    <div *ngIf="clienteSeleccionado">
+      <ion-button fill="outline" size="small" (click)="clienteSeleccionado = null" class="ion-margin-bottom">
+        ← Volver a la lista de estudiantes
+      </ion-button>
+
+      <ion-card>
+        <ion-card-header>
+          <ion-card-title>{{ clienteSeleccionado.name }}</ion-card-title>
+          <ion-card-subtitle>{{ clienteSeleccionado.email }}</ion-card-subtitle>
+        </ion-card-header>
+      </ion-card>
+
+      <ion-list-header>
+        <ion-label>Solicitudes de {{ clienteSeleccionado.name }}</ion-label>
+      </ion-list-header>
+
+      <ion-card *ngFor="let sol of clienteSeleccionado.solicitudes">
+        <ion-card-header>
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <ion-card-title style="font-size: 1rem;">Solicitud #{{ sol.id }}</ion-card-title>
+            <ion-badge [color]="sol.estado === 'Aprobada' ? 'success' : (sol.estado === 'Rechazada' ? 'danger' : 'warning')">
+              {{ sol.estado }}
+            </ion-badge>
+          </div>
+          <ion-card-subtitle>
+            Fecha: {{ sol.created_at | date:'dd/MM/yyyy h:mm a' }} · Total: <strong>${{ sol.total }} USD</strong>
+          </ion-card-subtitle>
+        </ion-card-header>
+
+        <ion-card-content>
+          <div *ngIf="sol.items && sol.items.length > 0" style="margin-bottom: 10px; padding: 8px; border-radius: 8px; background: rgba(var(--ion-color-medium-rgb), 0.08);">
+            <p style="margin: 0 0 4px 0; font-size: 0.85rem; font-weight: 600;">Ítems solicitados:</p>
+            <p *ngFor="let prod of sol.items" style="margin: 2px 0; font-size: 0.85rem;">
+              • {{ prod.cantidad }} × {{ prod.nombre }} (${{ prod.precio }})
+            </p>
+          </div>
+
+          <!-- Botones cuando está Pendiente -->
+          <div *ngIf="sol.estado === 'Pendiente'" style="display: flex; gap: 8px;">
+            <ion-button size="small" color="success" expand="block" style="flex: 1;" (click)="actualizarEstado(sol.id, 'Aprobada')">
+              <ion-icon name="checkmark-circle-outline" slot="start"></ion-icon>
+              Aprobar
+            </ion-button>
+            <ion-button size="small" color="danger" fill="outline" expand="block" style="flex: 1;" (click)="actualizarEstado(sol.id, 'Rechazada')">
+              <ion-icon name="close-circle-outline" slot="start"></ion-icon>
+              Rechazar
+            </ion-button>
+          </div>
+
+          <!-- Opción para revertir decisión si ya fue Aprobada o Rechazada -->
+          <div *ngIf="sol.estado !== 'Pendiente'" style="margin-top: 6px;">
+            <ion-button size="small" color="warning" fill="outline" expand="block" (click)="actualizarEstado(sol.id, 'Pendiente')">
+              Revertir decisión (Volver a Pendiente)
+            </ion-button>
+          </div>
+        </ion-card-content>
+      </ion-card>
+    </div>
+  </div>
+
+  <!-- 3. MI HISTORIAL DE SOLICITUDES (Solo visible para Cliente) -->
+  <div *ngIf="!esAdmin">
+    <ion-list-header class="ion-margin-top">
+      <ion-label>Mi Historial de Solicitudes</ion-label>
+    </ion-list-header>
+
+    <ion-card *ngFor="let sol of historial">
+      <ion-card-header>
+        <div style="display: flex; justify-content: space-between; align-items: center;">
+          <ion-card-title style="font-size: 1rem;">Solicitud #{{ sol.id }}</ion-card-title>
+          <ion-badge [color]="sol.estado === 'Aprobada' ? 'success' : (sol.estado === 'Rechazada' ? 'danger' : 'warning')">
+            {{ sol.estado }}
+          </ion-badge>
+        </div>
+        <ion-card-subtitle>
+          Fecha: {{ sol.created_at | date:'dd/MM/yyyy h:mm a' }} · Total: <strong>${{ sol.total }} USD</strong>
+        </ion-card-subtitle>
+      </ion-card-header>
+
+      <ion-card-content>
+        <div *ngIf="sol.items && sol.items.length > 0" style="margin-bottom: 10px; padding: 8px; border-radius: 8px; background: rgba(var(--ion-color-medium-rgb), 0.08);">
+          <p style="margin: 0 0 4px 0; font-size: 0.85rem; font-weight: 600;">Detalle del pedido:</p>
+          <p *ngFor="let prod of sol.items" style="margin: 2px 0; font-size: 0.85rem;">
+            • {{ prod.cantidad }} × {{ prod.nombre }} (${{ prod.precio }})
+          </p>
+        </div>
+
+        <ion-button *ngIf="sol.estado === 'Pendiente'" size="small" fill="outline" color="danger" (click)="cancelarSolicitud(sol.id)">
+          <ion-icon name="trash-outline" slot="start"></ion-icon>
+          Cancelar Solicitud
+        </ion-button>
+      </ion-card-content>
+    </ion-card>
+  </div>
+</ion-content>

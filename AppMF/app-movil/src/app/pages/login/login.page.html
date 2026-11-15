@@ -1,0 +1,58 @@
+<ion-header class="ion-no-border">
+  <ion-toolbar color="primary">
+    <ion-title>Catálogo Institucional ITCA</ion-title>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding">
+  <div class="ion-text-center ion-margin-top ion-margin-bottom">
+    <ion-icon name="school-outline" color="primary" style="font-size: 64px;"></ion-icon>
+    <h2>Bienvenido</h2>
+    <p style="color: var(--ion-color-medium);">Inicia sesión con tu correo institucional</p>
+  </div>
+
+  <form [formGroup]="loginForm" (ngSubmit)="iniciarSesion()">
+    <ion-card>
+      <ion-card-content>
+        <!-- Campo Correo -->
+        <ion-item fill="outline" class="ion-margin-bottom">
+          <ion-label position="floating">Correo Institucional</ion-label>
+          <ion-input type="email" formControlName="email" placeholder="ejemplo@itca.edu.sv"></ion-input>
+        </ion-item>
+
+        <!-- Mensaje inline US-02 -->
+        <div *ngIf="loginForm.get('email')?.touched && loginForm.get('email')?.invalid" class="ion-padding-start ion-margin-bottom">
+          <ion-text color="danger" style="font-size: 12px;">
+            <span *ngIf="loginForm.get('email')?.errors?.['required']">El correo es obligatorio.</span>
+            <span *ngIf="loginForm.get('email')?.errors?.['email']">Ingresa un formato de correo válido.</span>
+          </ion-text>
+        </div>
+
+        <!-- Campo Contraseña -->
+        <ion-item fill="outline" class="ion-margin-bottom">
+          <ion-label position="floating">Contraseña</ion-label>
+          <ion-input type="password" formControlName="password"></ion-input>
+        </ion-item>
+
+        <!-- Mensaje inline US-02 -->
+        <div *ngIf="loginForm.get('password')?.touched && loginForm.get('password')?.invalid" class="ion-padding-start ion-margin-bottom">
+          <ion-text color="danger" style="font-size: 12px;">
+            La contraseña es obligatoria.
+          </ion-text>
+        </div>
+
+        <!-- Botón deshabilitado si el formulario es inválido (US-02) -->
+        <ion-button expand="block" type="submit" [disabled]="loginForm.invalid || cargando" class="ion-margin-top">
+          <ion-spinner *ngIf="cargando" name="crescent" class="ion-margin-end"></ion-spinner>
+          Ingresar
+        </ion-button>
+
+        <div class="ion-text-center ion-margin-top">
+          <ion-button fill="clear" size="small" routerLink="/recuperar">
+            ¿Olvidaste tu contraseña?
+          </ion-button>
+        </div>
+      </ion-card-content>
+    </ion-card>
+  </form>
+</ion-content>

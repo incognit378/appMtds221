@@ -1,0 +1,59 @@
+<ion-header>
+  <ion-toolbar [color]="esAdmin ? 'dark' : 'primary'">
+    <ion-title>{{ esAdmin ? 'Catálogo ITCA (Admin)' : 'Catálogo ITCA' }}</ion-title>
+    <ion-buttons slot="end">
+      <ion-button routerLink="/tabs/tab2">
+        <ion-icon name="bag-handle-outline" slot="icon-only"></ion-icon>
+        <ion-badge color="danger" *ngIf="totalItems > 0" style="margin-left: 2px;">
+          {{ totalItems }}
+        </ion-badge>
+      </ion-button>
+    </ion-buttons>
+  </ion-toolbar>
+  <ion-toolbar [color]="esAdmin ? 'dark' : 'primary'">
+    <!-- Barra de búsqueda en tiempo real US-05 -->
+    <ion-searchbar
+      placeholder="Buscar producto o categoría..."
+      (ionInput)="filtrarProductos($event)"
+      [debounce]="200"
+      animated>
+    </ion-searchbar>
+  </ion-toolbar>
+</ion-header>
+
+<ion-content class="ion-padding">
+  <div *ngIf="cargando" class="ion-text-center ion-padding">
+    <ion-spinner name="crescent"></ion-spinner>
+  </div>
+
+  <!-- Grid de Tarjetas US-04 -->
+  <ion-grid *ngIf="!cargando">
+    <ion-row>
+      <ion-col size="12" size-md="6" *ngFor="let item of productosFiltrados">
+        <ion-card button [routerLink]="['/detalle-producto', item.id]" style="margin: 4px; height: 100%; display: flex; flex-direction: column; justify-content: space-between;">
+          <img [src]="item.imagen" [alt]="item.nombre" style="width: 100%; height: 140px; object-fit: cover;" />
+          <ion-card-header>
+            <ion-badge color="tertiary" style="width: fit-content; margin-bottom: 4px;">
+              {{ item.categoria }}
+            </ion-badge>
+            <ion-card-title style="font-size: 1.05rem;">{{ item.nombre }}</ion-card-title>
+          </ion-card-header>
+          <ion-card-content class="ion-no-padding ion-padding-horizontal ion-padding-bottom">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+              <strong style="color: var(--ion-color-primary); font-size: 1.15rem;">
+                {{ item.precio > 0 ? ('$' + item.precio) : 'Préstamo $0.00' }}
+              </strong>
+              <ion-button size="small" fill="solid" color="primary" (click)="agregarRapido($event, item)">
+                <ion-icon name="add-outline" slot="icon-only"></ion-icon>
+              </ion-button>
+            </div>
+          </ion-card-content>
+        </ion-card>
+      </ion-col>
+    </ion-row>
+
+    <div *ngIf="productosFiltrados.length === 0" class="ion-text-center ion-padding">
+      <p style="color: var(--ion-color-medium);">No se encontraron ítems que coincidan con la búsqueda.</p>
+    </div>
+  </ion-grid>
+</ion-content>
