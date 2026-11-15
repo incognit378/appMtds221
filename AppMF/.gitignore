@@ -1,0 +1,16 @@
+# Dependencias pesadas
+/api-catalogo/vendor/
+/app-movil/node_modules/
+/app-movil/.angular/
+/app-movil/www/
+
+# Archivos de entorno y llaves privadas
+/api-catalogo/.env
+/api-catalogo/.env.backup
+/api-catalogo/storage/*.key
+
+# Logs y caché temporal
+/api-catalogo/storage/logs/*.log
+/api-catalogo/bootstrap/cache/*.php
+.DS_Store
+Thumbs.db
