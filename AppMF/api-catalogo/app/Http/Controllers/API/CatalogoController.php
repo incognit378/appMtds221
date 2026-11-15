@@ -7,6 +7,7 @@ use Illuminate\Http\Request;
 use App\Models\Producto;
 use App\Models\Solicitud;
 use App\Models\User;
+use Illuminate\Support\Facades\DB;
 
 class CatalogoController extends Controller
 {
@@ -46,6 +47,22 @@ class CatalogoController extends Controller
             'total' => 'required|numeric|min:0',
         ]);
 
+        // Validar que haya stock suficiente antes de registrar la solicitud
+        foreach ($request->items as $item) {
+            $productoId = $item['id'] ?? $item['producto_id'] ?? null;
+            $producto = $productoId
+                ? Producto::find($productoId)
+                : Producto::where('nombre', $item['nombre'] ?? '')->first();
+
+            $cantidad = (int) ($item['cantidad'] ?? 1);
+
+            if (!$producto || $producto->stock < $cantidad) {
+                return response()->json([
+                    'message' => 'Stock insuficiente para: ' . ($item['nombre'] ?? 'producto seleccionado')
+                ], 422);
+            }
+        }
+
         $solicitud = Solicitud::create([
             'user_id' => $request->user()->id,
             'items'   => $request->items,
@@ -75,10 +92,11 @@ class CatalogoController extends Controller
         return response()->json($solicitudes, 200);
     }
 
-    // Panel Admin: Listar todos los usuarios con sus solicitudes e ítems
+    // Panel Admin: Listar usuarios y sus solicitudes (excluyendo test@example.com)
     public function listarClientes()
     {
-        $clientes = User::with(['solicitudes' => function ($q) {
+        $clientes = User::where('email', '!=', 'test@example.com')
+            ->with(['solicitudes' => function ($q) {
                 $q->orderBy('created_at', 'desc');
             }])
             ->get()
@@ -119,7 +137,7 @@ class CatalogoController extends Controller
         ], 200);
     }
 
-    // Panel Admin: Aprobar o Rechazar solicitud
+    // Panel Admin: Aprobar, Rechazar o Revertir (con ajuste automático de stock)
     public function cambiarEstado(Request $request, $id)
     {
         $request->validate([
@@ -132,8 +150,70 @@ class CatalogoController extends Controller
             return response()->json(['message' => 'Solicitud no encontrada.'], 404);
         }
 
-        $solicitud->estado = $request->estado;
-        $solicitud->save();
+        $estadoAnterior = $solicitud->estado;
+        $nuevoEstado = $request->estado;
+
+        if ($estadoAnterior === $nuevoEstado) {
+            return response()->json([
+                'message'   => 'La solicitud ya se encuentra en estado ' . $nuevoEstado,
+                'solicitud' => $solicitud
+            ], 200);
+        }
+
+        $items = is_string($solicitud->items)
+            ? (json_decode($solicitud->items, true) ?? [])
+            : ($solicitud->items ?? []);
+
+        try {
+            DB::transaction(function () use ($solicitud, $estadoAnterior, $nuevoEstado, $items) {
+                // Caso 1: Se aprueba una solicitud -> Descontar del inventario
+                if ($estadoAnterior !== 'Aprobada' && $nuevoEstado === 'Aprobada') {
+                    foreach ($items as $item) {
+                        $productoId = $item['id'] ?? $item['producto_id'] ?? null;
+                        $producto = $productoId
+                            ? Producto::lockForUpdate()->find($productoId)
+                            : Producto::lockForUpdate()->where('nombre', $item['nombre'] ?? '')->first();
+
+                        $cantidad = (int) ($item['cantidad'] ?? 1);
+
+                        if (!$producto) {
+                            throw new \Exception('Producto no encontrado en inventario: ' . ($item['nombre'] ?? 'desconocido'));
+                        }
+
+                        if ($producto->stock < $cantidad) {
+                            throw new \Exception('Stock insuficiente para aprobar: ' . $producto->nombre . ' (disponible: ' . $producto->stock . ')');
+                        }
+
+                        $producto->stock = $producto->stock - $cantidad;
+                        $producto->save();
+                    }
+                }
+
+                // Caso 2: Se revierte o rechaza una solicitud que estaba Aprobada -> Devolver stock
+                if ($estadoAnterior === 'Aprobada' && $nuevoEstado !== 'Aprobada') {
+                    foreach ($items as $item) {
+                        $productoId = $item['id'] ?? $item['producto_id'] ?? null;
+                        $producto = $productoId
+                            ? Producto::lockForUpdate()->find($productoId)
+                            : Producto::lockForUpdate()->where('nombre', $item['nombre'] ?? '')->first();
+
+                        $cantidad = (int) ($item['cantidad'] ?? 1);
+
+                        if ($producto) {
+                            $producto->stock = $producto->stock + $cantidad;
+                            $producto->save();
+                        }
+                    }
+                }
+
+                $solicitud->estado = $nuevoEstado;
+                $solicitud->save();
+            });
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => $e->getMessage()
+            ], 422);
+        }
 
         return response()->json([
             'message'   => 'Estado actualizado a ' . $solicitud->estado,

@@ -47,7 +47,7 @@
   <div *ngIf="esAdmin" class="ion-margin-top">
     <div *ngIf="!clienteSeleccionado">
       <ion-list-header>
-        <ion-label color="dark"><strong>Panel Admin: Usuarios ({{ clientes.length }})</strong></ion-label>
+        <ion-label><strong>Panel Admin: Estudiantes ({{ clientes.length }})</strong></ion-label>
       </ion-list-header>
 
       <ion-card *ngFor="let cli of clientes" button (click)="seleccionarCliente(cli)">
@@ -66,10 +66,10 @@
 
     <div *ngIf="clienteSeleccionado">
       <ion-button fill="outline" size="small" (click)="clienteSeleccionado = null" class="ion-margin-bottom">
-        ← Volver a la lista de usuarios
+        ← Volver a la lista de estudiantes
       </ion-button>
 
-      <ion-card color="light">
+      <ion-card>
         <ion-card-header>
           <ion-card-title>{{ clienteSeleccionado.name }}</ion-card-title>
           <ion-card-subtitle>{{ clienteSeleccionado.email }}</ion-card-subtitle>
@@ -101,6 +101,7 @@
             </p>
           </div>
 
+          <!-- Botones cuando está Pendiente -->
           <div *ngIf="sol.estado === 'Pendiente'" style="display: flex; gap: 8px;">
             <ion-button size="small" color="success" expand="block" style="flex: 1;" (click)="actualizarEstado(sol.id, 'Aprobada')">
               <ion-icon name="checkmark-circle-outline" slot="start"></ion-icon>
@@ -109,6 +110,13 @@
             <ion-button size="small" color="danger" fill="outline" expand="block" style="flex: 1;" (click)="actualizarEstado(sol.id, 'Rechazada')">
               <ion-icon name="close-circle-outline" slot="start"></ion-icon>
               Rechazar
+            </ion-button>
+          </div>
+
+          <!-- Opción para revertir decisión si ya fue Aprobada o Rechazada -->
+          <div *ngIf="sol.estado !== 'Pendiente'" style="margin-top: 6px;">
+            <ion-button size="small" color="warning" fill="outline" expand="block" (click)="actualizarEstado(sol.id, 'Pendiente')">
+              Revertir decisión (Volver a Pendiente)
             </ion-button>
           </div>
         </ion-card-content>
